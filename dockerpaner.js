@@ -1,0 +1,100 @@
+#!/usr/bin/env osascript -l JavaScript
+var DOCKER_PATH="/usr/local/bin/docker"
+
+var it = Application('iTerm')
+var app = Application.currentApplication();
+app.includeStandardAdditions = true
+
+var win = it.createWindowWithDefaultProfile();
+var tab = win.currentTab();
+var first_sesh = win.currentSession();
+var last_sesh = first_sesh;
+
+var keep_open = false;
+var close_initial = false;
+var modifier = 4;
+
+var conts = [];
+var cont_to_port = {};
+
+
+function horSplitSession(sesh, id) {
+	var command_string = DOCKER_PATH + " logs -f " + id;
+	var new_session
+	if (keep_open) {
+		new_session = sesh.splitHorizontallyWithDefaultProfile()
+		new_session.write({text: command_string, newline:true})
+		new_session.name = cont_to_port[id] + " | " +  id
+	} else {
+		new_session = sesh.splitHorizontallyWithDefaultProfile({command: command_string})
+		new_session.name = cont_to_port[id] + " | " +  id
+	}
+}
+
+function vertSplitSession(sesh, id) {
+	var command_string = DOCKER_PATH + " logs -f " + id;
+	var new_session
+	if (keep_open) {
+		new_session = sesh.splitVerticallyWithDefaultProfile()
+		new_session.write({text: command_string, newline:true})
+		new_session.name = cont_to_port[id] + " | " +  id
+	} else {
+		new_session = sesh.splitVerticallyWithDefaultProfile({command: command_string})
+		new_session.name = cont_to_port[id] + " | " +  id
+	}
+}
+
+function addContainer(contId) {
+	var session_count = tab.sessions.length;
+	var session;
+	//we need three main horizontal panes that we will split vertically later
+	
+	if (session_count < modifier) {
+		var index = (session_count - 1) % modifier;
+		session = tab.sessions[index];
+		horSplitSession(session, contId);
+	} else {
+		var index = Math.ceil((session_count / modifier)*((session_count % modifier)+1))-1;
+		session = tab.sessions[index];
+		vertSplitSession(session, contId)
+	}
+	
+	//the window opens with this and we need it to split from but we cant set its command so we should just close it
+	if (close_initial &&  first_sesh != 0) {
+		first_sesh.close()
+		first_sesh = 0
+	}
+	
+}
+
+
+
+function run(argv) {
+	if (argv.includes("-c")) {
+		modifier = 3;
+		close_initial = true;
+	} 
+	if (argv.includes("-k")) {
+		keep_open = true;
+	}
+	
+	while (true) {
+		var currentConts = app.doShellScript('docker ps --format "{{.Ports}}|{{.ID}}"').split('\r');
+		for (var i = 0; i < currentConts.length; i++) {
+			if (currentConts[i].length == 0) {
+				continue
+			}
+			var [port, ID] = currentConts[i].split("|")
+			if (!conts.includes(ID)) {
+				cont_to_port[ID] = port
+				conts.push(ID)
+				addContainer(ID)
+			}
+		}
+		//no easy way to sleep in js
+		app.doShellScript("sleep 3")
+	}
+}
+
+
+debugger
