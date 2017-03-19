@@ -95,6 +95,3 @@ function run(argv) {
 		app.doShellScript("sleep 3")
 	}
 }
-
-
-debugger
