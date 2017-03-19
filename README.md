@@ -23,6 +23,8 @@ check for new containers every 3 seconds
 
 split the rightmost panes from top to bottom inserting the new docker logs command
 
+panes are split horizontally until there are 3 or 4 horizontal panes open, and then they're split vertically.
+
 ## limitations
 the script will continue to work if one of the original panes is still open, but if
 you close the whole window it will crash. you can just restart it. 
